@@ -1,0 +1,20 @@
+﻿<Page
+    x:Class="App4.MainPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:App4"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Grid>
+
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock x:Name="TxtStatus" Text="Sẵn sàng chưa?" FontSize="30" Margin="0,0,0,20" TextWrapping="Wrap" MaxWidth="600" TextAlignment="Center" />
+                <Button Content="1. Khởi chạy FullTrust Server" Click="LaunchServer_Button_Click" FontSize="20" Padding="20,10" Margin="0,0,0,10"/>
+                <Button Content="2. Gửi TPM Request qua Named Pipe" Click="SendTPM_Button_Click" FontSize="20" Padding="20,10"/>
+            </StackPanel>
+
+    </Grid>
+</Page>
