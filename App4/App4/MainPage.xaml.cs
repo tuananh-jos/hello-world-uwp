@@ -48,6 +48,40 @@ namespace App4
             }
         }
 
+        private async void VerifyHello_Button_Click(object sender, Windows.UI.Xaml.RoutedEventArgs e)
+        {
+            try
+            {
+                TxtStatus.Text = "Prompting Windows Hello/PIN...";
+                
+                // Bước 1: Kiểm tra xem máy có hỗ trợ vân tay, FaceID hay mã PIN không
+                var availability = await Windows.Security.Credentials.UI.UserConsentVerifier.CheckAvailabilityAsync();
+                
+                if (availability == Windows.Security.Credentials.UI.UserConsentVerifierAvailability.Available)
+                {
+                    // Bước 2: Bật Popup xanh chính chủ của Windows lên đòi xác thực
+                    var consentResult = await Windows.Security.Credentials.UI.UserConsentVerifier.RequestVerificationAsync("Please verify your identity before extracting TPM.");
+                    
+                    if (consentResult == Windows.Security.Credentials.UI.UserConsentVerificationResult.Verified)
+                    {
+                        TxtStatus.Text = "Windows Hello: VERIFIED SUCCESSFULLY! ✓";
+                    }
+                    else
+                    {
+                        TxtStatus.Text = $"Windows Hello: Verification Failed ({consentResult}) ❌";
+                    }
+                }
+                else
+                {
+                    TxtStatus.Text = $"Windows Hello is unavailable: {availability} ⚠️";
+                }
+            }
+            catch (Exception ex)
+            {
+                TxtStatus.Text = "System Error: " + ex.Message;
+            }
+        }
+
         private void SendTPM_Button_Click(object sender, Windows.UI.Xaml.RoutedEventArgs e)
         {
             try
