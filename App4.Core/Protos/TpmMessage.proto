@@ -9,3 +9,22 @@ message TpmCommand {
   string sender_info = 2;
   int32 timestamp_ticks = 3;
 }
+
+// TPM query result returned from FullTrust to UWP
+message TpmResponse {
+  string status          = 1;  // "OK" | "TPM_UNAVAILABLE" | "ERROR"
+  string manufacturer    = 2;  // Win32_TPM.ManufacturerIdTxt, e.g. "IFX"
+  string spec_version    = 3;  // Win32_TPM.SpecVersion, e.g. "2.0"
+  string key_name        = 4;  // CngKey.UniqueName — stable TPM-assigned identifier
+  string key_algorithm   = 5;  // "ECDSA_P256"
+  string error_message   = 6;  // populated only when status != "OK"
+  int64  timestamp_ticks = 7;  // int64 to avoid DateTime.Ticks overflow
+}
+
+// Typed wrapper for the TPM pipe channel (oneof = discriminated union)
+message TpmPipeMessage {
+  oneof payload {
+    TpmCommand  command  = 1;
+    TpmResponse response = 2;
+  }
+}

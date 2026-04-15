@@ -47,8 +47,8 @@
 		<Extensions>
 			<desktop:Extension Category="windows.fullTrustProcess" Executable="MyFullTrustConsole\MyFullTrustConsole.exe">
 				<desktop:FullTrustProcess>
-					<desktop:ParameterGroup GroupId="KillTaskGroup" Parameters="/kill" />
-					<desktop:ParameterGroup GroupId="WriteLogGroup" Parameters="/log" />
+					<desktop:ParameterGroup GroupId="BrowserExtensionGroup" Parameters="/browser_extension" />
+					<desktop:ParameterGroup GroupId="TpmGroup" Parameters="/tpm" />
 				</desktop:FullTrustProcess>
 			</desktop:Extension>
 

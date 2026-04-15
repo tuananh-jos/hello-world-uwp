@@ -9,13 +9,52 @@
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <Grid>
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12" MaxWidth="620">
 
-            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
-                <TextBlock x:Name="TxtStatus" Text="Ready for action?" FontSize="24" Margin="0,0,0,20" TextWrapping="Wrap" MaxWidth="600" TextAlignment="Center" />
-                <Button Content="1. Launch Desktop Client" Click="LaunchServer_Button_Click" FontSize="20" Padding="20,10" HorizontalAlignment="Stretch"/>
-                <Button Content="2. Verify Windows Hello" Click="VerifyHello_Button_Click" FontSize="20" Padding="20,10" HorizontalAlignment="Stretch"/>
-                <Button Content="3. Send Binary Payload via Pipeline" Click="SendTPM_Button_Click" FontSize="20" Padding="20,10" HorizontalAlignment="Stretch"/>
-            </StackPanel>
+            <!-- Status -->
+            <TextBlock x:Name="TxtStatus" Text="Ready for action?" FontSize="20"
+                       Margin="0,0,0,8" TextWrapping="Wrap" TextAlignment="Center" />
 
+            <!-- Windows Hello -->
+            <Button Content="Verify Windows Hello"
+                    Click="VerifyHello_Button_Click"
+                    FontSize="18" Padding="20,10" HorizontalAlignment="Stretch"/>
+
+            <!-- Browser Extension row -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="8"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Button Grid.Column="0" Content="Launch Browser Extension"
+                        Click="LaunchBrowserExt_Button_Click"
+                        FontSize="16" Padding="16,10" HorizontalAlignment="Stretch"/>
+                <Button Grid.Column="2" Content="Send Command"
+                        Click="SendBrowserExt_Button_Click"
+                        FontSize="16" Padding="16,10" HorizontalAlignment="Stretch"/>
+            </Grid>
+
+            <!-- TPM row -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="8"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Button Grid.Column="0" Content="Launch TPM"
+                        Click="LaunchTpm_Button_Click"
+                        FontSize="16" Padding="16,10" HorizontalAlignment="Stretch"/>
+                <Button Grid.Column="2" Content="Send TPM Query"
+                        Click="SendTpm_Button_Click"
+                        FontSize="16" Padding="16,10" HorizontalAlignment="Stretch"/>
+            </Grid>
+
+            <!-- TPM version check — local only, no pipe needed -->
+            <Button Content="Check TPM Version (local)"
+                    Click="CheckTpmVersion_Button_Click"
+                    FontSize="16" Padding="16,10" HorizontalAlignment="Stretch"/>
+
+        </StackPanel>
     </Grid>
 </Page>

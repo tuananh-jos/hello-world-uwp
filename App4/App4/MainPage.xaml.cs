@@ -3,102 +3,179 @@ using Windows.ApplicationModel;
 using Windows.UI.Xaml.Controls;
 using App4.Core;
 using App4.Core.Protos;
+using App4.Services;
 
 namespace App4
 {
     public sealed partial class MainPage : Page
     {
         private PipeServer _server;
+        private TpmPipeServer _tpmServer;
 
         public MainPage()
         {
             InitializeComponent();
-            
-            // UWP requires LOCAL\ prefix to create Sandbox virtualized object
+
+            // ── Browser Extension pipe (legacy TpmCommand protocol) ─────────────
             _server = new PipeServer(@"LOCAL\App4FulltrustToUWP", @"LOCAL\App4UWPToFulltrust");
             _server.OnDataReceived += async (s, e) =>
             {
                 await Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, () =>
                 {
-                    TxtStatus.Text = $"Reply: Action '{e.ActionName}' from '{e.SenderInfo}' at tick {e.TimestampTicks}";
+                    TxtStatus.Text = $"[BrowserExt] Reply: '{e.ActionName}' from '{e.SenderInfo}'";
                 });
             };
-            _server.OnError += async (s, ex) => 
+            _server.OnError += async (s, ex) =>
             {
                 await Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, () =>
                 {
-                    TxtStatus.Text = "Server Error: " + ex.GetType().Name + " - " + ex.Message;
+                    TxtStatus.Text = "[BrowserExt] Error: " + ex.Message;
                 });
             };
-
-            // Non-blocking start
             _ = _server.StartListeningAsync();
+
+            // ── TPM pipe (TpmPipeMessage protocol) ──────────────────────────────
+            _tpmServer = new TpmPipeServer(@"LOCAL\App4TpmFulltrustToUWP", @"LOCAL\App4TpmUWPToFulltrust");
+            _tpmServer.OnDataReceived += async (s, msg) =>
+            {
+                await Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, () =>
+                {
+                    switch (msg.PayloadCase)
+                    {
+                        case TpmPipeMessage.PayloadOneofCase.Response:
+                            var r = msg.Response;
+                            TxtStatus.Text = r.Status == "OK"
+                                ? $"TPM OK\nManufacturer : {r.Manufacturer}\nSpec Version : {r.SpecVersion}\nKey Name     : {r.KeyName}\nAlgorithm    : {r.KeyAlgorithm}"
+                                : $"TPM {r.Status}: {r.ErrorMessage}";
+                            break;
+
+                        case TpmPipeMessage.PayloadOneofCase.Command:
+                            TxtStatus.Text = $"[TPM] Command: {msg.Command.ActionName}";
+                            break;
+                    }
+                });
+            };
+            _tpmServer.OnError += async (s, ex) =>
+            {
+                await Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, () =>
+                {
+                    TxtStatus.Text = "[TPM] Error: " + ex.Message;
+                });
+            };
+            _ = _tpmServer.StartListeningAsync();
         }
 
-        private async void LaunchServer_Button_Click(object sender, Windows.UI.Xaml.RoutedEventArgs e)
-        { 
+        // ── Browser Extension handlers ──────────────────────────────────────────
+
+        private async void LaunchBrowserExt_Button_Click(object sender, Windows.UI.Xaml.RoutedEventArgs e)
+        {
             try
             {
-                TxtStatus.Text = "Launching Desktop Client...";
-                await FullTrustProcessLauncher.LaunchFullTrustProcessForCurrentAppAsync("WriteLogGroup");
+                TxtStatus.Text = "Launching Browser Extension process...";
+                await FullTrustProcessLauncher.LaunchFullTrustProcessForCurrentAppAsync("BrowserExtensionGroup");
             }
             catch (Exception ex)
             {
-                TxtStatus.Text = "Client Launch Error: " + ex.Message;
+                TxtStatus.Text = "Launch Error: " + ex.Message;
             }
         }
+
+        private void SendBrowserExt_Button_Click(object sender, Windows.UI.Xaml.RoutedEventArgs e)
+        {
+            try
+            {
+                _server.SendMessage(new TpmCommand
+                {
+                    ActionName     = "GET_LOG",
+                    SenderInfo     = "App4_UWP_Sandbox",
+                    TimestampTicks = (int)DateTime.Now.Ticks
+                });
+                TxtStatus.Text = "[BrowserExt] Command dispatched!";
+            }
+            catch (Exception ex)
+            {
+                TxtStatus.Text = "Error: " + ex.Message;
+            }
+        }
+
+        // ── TPM handlers ────────────────────────────────────────────────────────
+
+        private async void LaunchTpm_Button_Click(object sender, Windows.UI.Xaml.RoutedEventArgs e)
+        {
+            try
+            {
+                TxtStatus.Text = "Launching TPM process...";
+                await FullTrustProcessLauncher.LaunchFullTrustProcessForCurrentAppAsync("TpmGroup");
+            }
+            catch (Exception ex)
+            {
+                TxtStatus.Text = "Launch Error: " + ex.Message;
+            }
+        }
+
+        private void SendTpm_Button_Click(object sender, Windows.UI.Xaml.RoutedEventArgs e)
+        {
+            try
+            {
+                _tpmServer.SendMessage(new TpmPipeMessage
+                {
+                    Command = new TpmCommand
+                    {
+                        ActionName     = "GET_TPM_KEY",
+                        SenderInfo     = "App4_UWP_Sandbox",
+                        TimestampTicks = (int)DateTime.Now.Ticks
+                    }
+                });
+                TxtStatus.Text = "TPM query dispatched! Standing by...";
+            }
+            catch (Exception ex)
+            {
+                TxtStatus.Text = "Error: " + ex.Message;
+            }
+        }
+
+        // ── TPM Version (local, no pipe) ─────────────────────────────────────────
+
+        private void CheckTpmVersion_Button_Click(object sender, Windows.UI.Xaml.RoutedEventArgs e)
+        {
+            try
+            {
+                var info = TpmBaseService.GetDeviceInfo();
+                TxtStatus.Text = $"TPM Version Check\n{info.Summary}";
+            }
+            catch (Exception ex)
+            {
+                TxtStatus.Text = "TPM Check Error: " + ex.Message;
+            }
+        }
+
+        // ── Windows Hello ────────────────────────────────────────────────────────
 
         private async void VerifyHello_Button_Click(object sender, Windows.UI.Xaml.RoutedEventArgs e)
         {
             try
             {
                 TxtStatus.Text = "Prompting Windows Hello/PIN...";
-                
-                // Bước 1: Kiểm tra xem máy có hỗ trợ vân tay, FaceID hay mã PIN không
+
                 var availability = await Windows.Security.Credentials.UI.UserConsentVerifier.CheckAvailabilityAsync();
-                
+
                 if (availability == Windows.Security.Credentials.UI.UserConsentVerifierAvailability.Available)
                 {
-                    // Bước 2: Bật Popup xanh chính chủ của Windows lên đòi xác thực
-                    var consentResult = await Windows.Security.Credentials.UI.UserConsentVerifier.RequestVerificationAsync("Please verify your identity before extracting TPM.");
-                    
-                    if (consentResult == Windows.Security.Credentials.UI.UserConsentVerificationResult.Verified)
-                    {
-                        TxtStatus.Text = "Windows Hello: VERIFIED SUCCESSFULLY! ✓";
-                    }
-                    else
-                    {
-                        TxtStatus.Text = $"Windows Hello: Verification Failed ({consentResult}) ❌";
-                    }
+                    var result = await Windows.Security.Credentials.UI.UserConsentVerifier.RequestVerificationAsync(
+                        "Please verify your identity before extracting TPM.");
+
+                    TxtStatus.Text = result == Windows.Security.Credentials.UI.UserConsentVerificationResult.Verified
+                        ? "Windows Hello: VERIFIED SUCCESSFULLY! ✓"
+                        : $"Windows Hello: Failed ({result}) ❌";
                 }
                 else
                 {
-                    TxtStatus.Text = $"Windows Hello is unavailable: {availability} ⚠️";
+                    TxtStatus.Text = $"Windows Hello unavailable: {availability} ⚠️";
                 }
             }
             catch (Exception ex)
             {
-                TxtStatus.Text = "System Error: " + ex.Message;
-            }
-        }
-
-        private void SendTPM_Button_Click(object sender, Windows.UI.Xaml.RoutedEventArgs e)
-        {
-            try
-            {
-                var tpmReq = new TpmCommand 
-                { 
-                    ActionName = "GET_TPM_KEY", 
-                    SenderInfo = "App4_UWP_Sandbox",
-                    TimestampTicks = (int)DateTime.Now.Ticks
-                };
-                
-                _server.SendMessage(tpmReq);
-                TxtStatus.Text = "Binary payload dispatched! Standing by...";
-            }
-            catch (Exception ex)
-            {
-                TxtStatus.Text = "System Error: " + ex.Message;
+                TxtStatus.Text = "Error: " + ex.Message;
             }
         }
     }
