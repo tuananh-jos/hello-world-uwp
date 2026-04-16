@@ -55,6 +55,26 @@
                     Click="CheckTpmVersion_Button_Click"
                     FontSize="16" Padding="16,10" HorizontalAlignment="Stretch"/>
 
+            <!-- Write test row -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="8"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="8"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Button Grid.Column="0" Content="UWP Write"
+                        Click="TestUwpWrite_Button_Click"
+                        FontSize="14" Padding="12,10" HorizontalAlignment="Stretch"/>
+                <Button Grid.Column="2" Content="FullTrust Write"
+                        Click="TestFullTrustWrite_Button_Click"
+                        FontSize="14" Padding="12,10" HorizontalAlignment="Stretch"/>
+                <Button Grid.Column="4" Content="Admin Write (UAC)"
+                        Click="TestAdminWrite_Button_Click"
+                        FontSize="14" Padding="12,10" HorizontalAlignment="Stretch"/>
+            </Grid>
+
         </StackPanel>
     </Grid>
 </Page>

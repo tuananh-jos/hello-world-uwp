@@ -13,6 +13,14 @@ namespace MyFullTrustConsole
         static async Task Main(string[] args)
         {
             // Manifest: BrowserExtensionGroup → /browser_extension, TpmGroup → /tpm
+            if (args.Contains("/admin_write"))
+            {
+                File.WriteAllText(@"C:\Windows\Temp\App4AdminTest.txt",
+                    $"Written by elevated process at {DateTime.Now}");
+                Console.WriteLine("[Admin] File written.");
+                return;
+            }
+
             if (args.Contains("/tpm"))
                 await RunTpmModeAsync();
             else if (args.Contains("/browser_extension"))
@@ -112,6 +120,47 @@ namespace MyFullTrustConsole
                     TpmResponse tpmResp = await QueryTpmAsync();
                     Console.WriteLine($"[TPM Pipe] Sending response: Status={tpmResp.Status}");
                     client.SendMessage(new TpmPipeMessage { Response = tpmResp });
+                }
+                else if (cmd.ActionName == "WRITE_FULLTRUST_FILE")
+                {
+                    TpmResponse resp;
+                    try
+                    {
+                        const string path = @"C:\Users\Public\App4FullTrustTest.txt";
+                        File.WriteAllText(path, $"Written by FullTrust (user) at {DateTime.Now}");
+                        Console.WriteLine($"[FullTrust Write] OK: {path}");
+                        resp = new TpmResponse { Status = "OK", ErrorMessage = path, TimestampTicks = DateTime.UtcNow.Ticks };
+                    }
+                    catch (Exception ex)
+                    {
+                        resp = new TpmResponse { Status = "ERROR", ErrorMessage = ex.Message, TimestampTicks = DateTime.UtcNow.Ticks };
+                    }
+                    client.SendMessage(new TpmPipeMessage { Response = resp });
+                }
+                else if (cmd.ActionName == "WRITE_ADMIN_FILE")
+                {
+                    TpmResponse resp;
+                    try
+                    {
+                        const string targetPath = @"C:\Windows\Temp\App4AdminTest.txt";
+                        var exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule!.FileName;
+                        var proc = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exePath, "/admin_write")
+                        {
+                            UseShellExecute = true,
+                            Verb = "runas"
+                        });
+                        proc!.WaitForExit();
+                        bool ok = File.Exists(targetPath);
+                        Console.WriteLine($"[Admin Write] File exists: {ok}");
+                        resp = ok
+                            ? new TpmResponse { Status = "OK",    ErrorMessage = targetPath,          TimestampTicks = DateTime.UtcNow.Ticks }
+                            : new TpmResponse { Status = "ERROR", ErrorMessage = "File not created",  TimestampTicks = DateTime.UtcNow.Ticks };
+                    }
+                    catch (Exception ex)
+                    {
+                        resp = new TpmResponse { Status = "ERROR", ErrorMessage = ex.Message, TimestampTicks = DateTime.UtcNow.Ticks };
+                    }
+                    client.SendMessage(new TpmPipeMessage { Response = resp });
                 }
             };
 

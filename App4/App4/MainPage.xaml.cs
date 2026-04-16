@@ -44,14 +44,22 @@ namespace App4
                     {
                         case TpmPipeMessage.PayloadOneofCase.Response:
                             var r = msg.Response;
-                            TxtStatus.Text = r.Status == "OK"
-                                ? $"TPM OK\nManufacturer : {r.Manufacturer}\nSpec Version : {r.SpecVersion}\nKey Name     : {r.KeyName}\nAlgorithm    : {r.KeyAlgorithm}"
-                                : $"TPM {r.Status}: {r.ErrorMessage}";
+                            if (r.Status == "OK")
+                            {
+                                TxtStatus.Text = string.IsNullOrEmpty(r.Manufacturer)
+                                    ? $"Write OK\n{r.ErrorMessage}"
+                                    : $"TPM OK\nManufacturer : {r.Manufacturer}\nSpec Version : {r.SpecVersion}\nKey Name     : {r.KeyName}\nAlgorithm    : {r.KeyAlgorithm}";
+                            }
+                            else
+                            {
+                                TxtStatus.Text = $"{r.Status}: {r.ErrorMessage}";
+                            }
                             break;
 
                         case TpmPipeMessage.PayloadOneofCase.Command:
                             TxtStatus.Text = $"[TPM] Command: {msg.Command.ActionName}";
                             break;
+
                     }
                 });
             };
@@ -76,7 +84,7 @@ namespace App4
             }
             catch (Exception ex)
             {
-                TxtStatus.Text = "Launch Error: " + ex.Message;
+                TxtStatus.Text = $"Launch Error: {ex.GetType().Name} 0x{ex.HResult:X8}\n{ex.Message}";
             }
         }
 
@@ -109,7 +117,7 @@ namespace App4
             }
             catch (Exception ex)
             {
-                TxtStatus.Text = "Launch Error: " + ex.Message;
+                TxtStatus.Text = $"Launch Error: {ex.GetType().Name} 0x{ex.HResult:X8}\n{ex.Message}";
             }
         }
 
@@ -147,6 +155,51 @@ namespace App4
             {
                 TxtStatus.Text = "TPM Check Error: " + ex.Message;
             }
+        }
+
+        // ── Write Test handlers ──────────────────────────────────────────────────
+
+        private async void TestUwpWrite_Button_Click(object sender, Windows.UI.Xaml.RoutedEventArgs e)
+        {
+            try
+            {
+                var folder = Windows.Storage.ApplicationData.Current.LocalFolder;
+                var file = await folder.CreateFileAsync("App4UwpTest.txt",
+                    Windows.Storage.CreationCollisionOption.ReplaceExisting);
+                await Windows.Storage.FileIO.WriteTextAsync(file,
+                    $"Written by UWP at {DateTime.Now}");
+                TxtStatus.Text = $"UWP Write OK\n{file.Path}";
+            }
+            catch (Exception ex)
+            {
+                TxtStatus.Text = "UWP Write Error: " + ex.Message;
+            }
+        }
+
+        private void TestFullTrustWrite_Button_Click(object sender, Windows.UI.Xaml.RoutedEventArgs e)
+        {
+            try
+            {
+                _tpmServer.SendMessage(new TpmPipeMessage
+                {
+                    Command = new TpmCommand { ActionName = "WRITE_FULLTRUST_FILE", SenderInfo = "App4_UWP", TimestampTicks = (int)DateTime.Now.Ticks }
+                });
+                TxtStatus.Text = "FullTrust Write dispatched...";
+            }
+            catch (Exception ex) { TxtStatus.Text = "Error: " + ex.Message; }
+        }
+
+        private void TestAdminWrite_Button_Click(object sender, Windows.UI.Xaml.RoutedEventArgs e)
+        {
+            try
+            {
+                _tpmServer.SendMessage(new TpmPipeMessage
+                {
+                    Command = new TpmCommand { ActionName = "WRITE_ADMIN_FILE", SenderInfo = "App4_UWP", TimestampTicks = (int)DateTime.Now.Ticks }
+                });
+                TxtStatus.Text = "Admin Write dispatched — UAC prompt incoming...";
+            }
+            catch (Exception ex) { TxtStatus.Text = "Error: " + ex.Message; }
         }
 
         // ── Windows Hello ────────────────────────────────────────────────────────
