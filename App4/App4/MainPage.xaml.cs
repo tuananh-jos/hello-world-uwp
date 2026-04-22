@@ -1,5 +1,6 @@
 using System;
 using Windows.ApplicationModel;
+using Windows.ApplicationModel.Background;
 using Windows.UI.Xaml.Controls;
 using App4.Core;
 using App4.Core.Protos;
@@ -11,6 +12,10 @@ namespace App4
     {
         private PipeServer _server;
         private TpmPipeServer _tpmServer;
+
+        // ── Background Task ──────────────────────────────────────────────────────
+        private const string BgTaskName = "HeartbeatTask";
+        private ApplicationTrigger? _appTrigger;
 
         public MainPage()
         {
@@ -200,6 +205,100 @@ namespace App4
                 TxtStatus.Text = "Admin Write dispatched — UAC prompt incoming...";
             }
             catch (Exception ex) { TxtStatus.Text = "Error: " + ex.Message; }
+        }
+
+        // ── Background Task handlers ─────────────────────────────────────────────
+
+        private void RegisterBgTask_Button_Click(object sender, Windows.UI.Xaml.RoutedEventArgs e)
+        {
+            // Idempotent: skip if a task with this name is already registered.
+            foreach (var pair in BackgroundTaskRegistration.AllTasks)
+            {
+                if (pair.Value.Name == BgTaskName)
+                {
+                    TxtStatus.Text = "[BgTask] Already registered. Ready to trigger.";
+                    return;
+                }
+            }
+
+            _appTrigger = new ApplicationTrigger();
+
+            var builder = new BackgroundTaskBuilder
+            {
+                Name = BgTaskName
+            };
+            builder.SetTrigger(_appTrigger);
+
+            var registration = builder.Register();
+
+            // Subscribe to completion so UI updates when the task finishes.
+            registration.Completed += async (reg, args) =>
+            {
+                await Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, async () =>
+                {
+                    try
+                    {
+                        // Read back the proof-of-execution file written by HeartbeatTask.
+                        var folder = Windows.Storage.ApplicationData.Current.LocalFolder;
+                        var file   = await folder.GetFileAsync("HeartbeatTaskLog.txt");
+                        var text   = await Windows.Storage.FileIO.ReadTextAsync(file);
+                        TxtStatus.Text = $"[BgTask] Completed!\n{text}";
+                    }
+                    catch (Exception ex)
+                    {
+                        TxtStatus.Text = $"[BgTask] Completed (log read error: {ex.Message})";
+                    }
+                });
+            };
+
+            TxtStatus.Text = "[BgTask] Registered successfully. Press Trigger to run it.";
+        }
+
+        private async void TriggerBgTask_Button_Click(object sender, Windows.UI.Xaml.RoutedEventArgs e)
+        {
+            // Lazily recover _appTrigger if app restarted between Register and Trigger.
+            if (_appTrigger == null)
+            {
+                foreach (var pair in BackgroundTaskRegistration.AllTasks)
+                {
+                    if (pair.Value.Name == BgTaskName)
+                    {
+                        TxtStatus.Text = "[BgTask] Already registered but trigger handle lost.\nUnregister and re-register first.";
+                        return;
+                    }
+                }
+                TxtStatus.Text = "[BgTask] Not registered yet. Press Register first.";
+                return;
+            }
+
+            try
+            {
+                TxtStatus.Text = "[BgTask] Triggering...";
+                var result = await _appTrigger.RequestAsync();
+                TxtStatus.Text = $"[BgTask] RequestAsync result: {result}\nWaiting for Completed event...";
+            }
+            catch (Exception ex)
+            {
+                TxtStatus.Text = $"[BgTask] Trigger error: {ex.Message}";
+            }
+        }
+
+        private void UnregisterBgTask_Button_Click(object sender, Windows.UI.Xaml.RoutedEventArgs e)
+        {
+            bool found = false;
+            foreach (var pair in BackgroundTaskRegistration.AllTasks)
+            {
+                if (pair.Value.Name == BgTaskName)
+                {
+                    pair.Value.Unregister(cancelTask: true);
+                    found = true;
+                    break;
+                }
+            }
+            _appTrigger = null;
+            TxtStatus.Text = found
+                ? "[BgTask] Unregistered."
+                : "[BgTask] No registered task found.";
         }
 
         // ── Windows Hello ────────────────────────────────────────────────────────

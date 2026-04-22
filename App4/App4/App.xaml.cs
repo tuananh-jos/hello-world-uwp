@@ -1,9 +1,11 @@
 ﻿using System;
 using Windows.ApplicationModel;
 using Windows.ApplicationModel.Activation;
+using Windows.ApplicationModel.Background;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Navigation;
+using App4.BackgroundTasks;
 
 namespace App4
 {
@@ -80,6 +82,25 @@ namespace App4
 
             // TODO: Save application state and stop any background activity
             deferral.Complete();
+        }
+
+        /// <summary>
+        /// Entry point for ALL in-process background tasks.
+        /// The system calls this instead of launching a separate process.
+        /// Route by task name to the correct IBackgroundTask implementation.
+        /// </summary>
+        protected override void OnBackgroundActivated(BackgroundActivatedEventArgs args)
+        {
+            base.OnBackgroundActivated(args);
+
+            var taskInstance = args.TaskInstance;
+
+            switch (taskInstance.Task.Name)
+            {
+                case "HeartbeatTask":
+                    new HeartbeatTask().Run(taskInstance);
+                    break;
+            }
         }
     }
 }

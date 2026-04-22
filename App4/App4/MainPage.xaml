@@ -55,6 +55,26 @@
                     Click="CheckTpmVersion_Button_Click"
                     FontSize="16" Padding="16,10" HorizontalAlignment="Stretch"/>
 
+            <!-- Background Task row -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="8"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="8"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Button Grid.Column="0" Content="Register BG Task"
+                        Click="RegisterBgTask_Button_Click"
+                        FontSize="14" Padding="12,10" HorizontalAlignment="Stretch"/>
+                <Button Grid.Column="2" Content="Trigger BG Task"
+                        Click="TriggerBgTask_Button_Click"
+                        FontSize="14" Padding="12,10" HorizontalAlignment="Stretch"/>
+                <Button Grid.Column="4" Content="Unregister BG Task"
+                        Click="UnregisterBgTask_Button_Click"
+                        FontSize="14" Padding="12,10" HorizontalAlignment="Stretch"/>
+            </Grid>
+
             <!-- Write test row -->
             <Grid>
                 <Grid.ColumnDefinitions>
