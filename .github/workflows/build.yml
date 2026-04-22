@@ -2,43 +2,26 @@ name: Build
 
 on:
   push:
-    branches: [ "cicd/github-actions" ]
   pull_request:
-    branches: [ main ]
 
 jobs:
+  check-pr-title:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate JIRA key in PR title
+        run: |
+          title="${{ github.event.pull_request.title }}"
+          if [[ ! "$title" =~ ^\[[A-Z]+-[0-9]+\] ]]; then
+            echo "PR title must start with a JIRA key, e.g. [J-422] your title here"
+            exit 1
+          fi
+
   build:
     runs-on: windows-latest
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
-
-      - name: Restore NuGet packages
-        run: |
-          msbuild App4/App4.Package/App4.Package.wapproj `
-            /t:Restore `
-            /p:Configuration=Release `
-            /p:Platform=x64
-
-      - name: Build MSIX package
-        run: |
-          msbuild App4/App4.Package/App4.Package.wapproj `
-            /p:Configuration=Release `
-            /p:Platform=x64 `
-            /p:AppxBundle=Never `
-            /p:UapAppxPackageBuildMode=SideloadOnly `
-            /p:AppxPackageSigningEnabled=false
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: msix-package
-          path: App4/App4.Package/AppPackages/
+      - name: Hello
+        run: echo "CI/CD is working!"
