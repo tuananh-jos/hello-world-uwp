@@ -5,17 +5,42 @@ on:
   pull_request:
 
 jobs:
-  check-pr-title:
-    if: github.event_name == 'pull_request'
+  check-commit-message:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     steps:
-      - name: Validate JIRA key in PR title
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate JIRA key in commit message
+        id: validate
         run: |
-          title="${{ github.event.pull_request.title }}"
-          if [[ ! "$title" =~ ^\[[A-Z]+-[0-9]+\] ]]; then
-            echo "PR title must start with a JIRA key, e.g. [J-422] your title here"
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            msg=$(git log -1 --format='%s' ${{ github.event.pull_request.head.sha }})
+          else
+            msg=$(git log -1 --format='%s' ${{ github.sha }})
+          fi
+
+          echo "Checking: \"$msg\""
+          if [[ ! "$msg" =~ ^\[[A-Z]+-[0-9]+\] ]]; then
+            echo "Missing JIRA key. Expected format: [J-422] your message"
             exit 1
           fi
+          echo "OK"
+
+      - name: Comment on PR if validation fails
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '**Commit message validation failed.**\n\nAll commit messages must start with a JIRA key.\n\nExample: `[J-422] add github actions build workflow`'
+            })
 
   build:
     runs-on: windows-latest
